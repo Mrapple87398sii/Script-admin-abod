@@ -1,0 +1,120 @@
+-- أقوى سكربت متقدم جدًا لتقليل Lag + Auto Optimization
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UserSettings = UserSettings()
+local RenderSettings = UserSettings:GetService("UserGameSettings")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- =====================
+-- 1️⃣ تحديد قوة الجهاز تلقائيًا
+-- =====================
+local function getDevicePerformance()
+    local perf = UserSettings.PerformanceQualityLevel
+    -- perf: 1 = منخفض، 2 = متوسط، 3 = عالي
+    return perf or 1
+end
+
+local devicePerf = getDevicePerformance()
+
+-- =====================
+-- 2️⃣ ضبط الرسوميات حسب قوة الجهاز
+-- =====================
+if devicePerf == 1 then
+    RenderSettings.GraphicsQualityLevel = 1
+    RenderSettings.SavedQualityLevel = 1
+elseif devicePerf == 2 then
+    RenderSettings.GraphicsQualityLevel = 2
+    RenderSettings.SavedQualityLevel = 2
+else
+    RenderSettings.GraphicsQualityLevel = 3
+    RenderSettings.SavedQualityLevel = 3
+end
+
+-- =====================
+-- 3️⃣ تعطيل Effects ثقيلة تلقائيًا
+-- =====================
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 100000
+Lighting.Brightness = 2
+Lighting.Ambient = Color3.fromRGB(200,200,200)
+Lighting.OutdoorAmbient = Color3.fromRGB(180,180,180)
+
+for _, effect in pairs(Lighting:GetChildren()) do
+    if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") or effect:IsA("SunRaysEffect") then
+        effect.Enabled = false
+    end
+end
+
+-- =====================
+-- 4️⃣ تعطيل كل Particle / Trail / Smoke / Fire / Explosion
+-- =====================
+local function disableEffects(parent)
+    for _, obj in pairs(parent:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
+            obj.Enabled = false
+        elseif obj:IsA("Explosion") then
+            obj.BlastPressure = 0
+            obj.BlastRadius = 0
+        end
+    end
+end
+
+disableEffects(Workspace)
+RunService.Heartbeat:Connect(function()
+    disableEffects(Workspace)
+end)
+
+-- =====================
+-- 5️⃣ Dynamic FPS Limiter ذكي
+-- =====================
+local targetFPS = devicePerf == 1 and 30 or (devicePerf == 2 and 45 or 60)
+local frameTime = 1 / targetFPS
+local lastFrame = tick()
+
+RunService.RenderStepped:Connect(function()
+    local now = tick()
+    local dt = now - lastFrame
+    if dt < frameTime then
+        wait(frameTime - dt)
+    end
+    lastFrame = tick()
+end)
+
+-- =====================
+-- 6️⃣ LOD ديناميكي تلقائي للأجزاء البعيدة
+-- =====================
+local LOD_DISTANCE = devicePerf == 1 and 100 or (devicePerf == 2 and 200 or 300)
+
+RunService.Heartbeat:Connect(function()
+    local camPos = camera.CFrame.Position
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local distance = (obj.Position - camPos).Magnitude
+            if distance > LOD_DISTANCE then
+                obj.Transparency = 1
+                obj.CanCollide = false
+            else
+                obj.Transparency = 0
+                obj.CanCollide = true
+            end
+        end
+    end
+end)
+
+-- =====================
+-- 7️⃣ تحسين Meshes تلقائيًا
+-- =====================
+for _, mesh in pairs(Workspace:GetDescendants()) do
+    if mesh:IsA("SpecialMesh") or mesh:IsA("MeshPart") then
+        mesh.LevelOfDetail = devicePerf == 1 and 1 or (devicePerf == 2 and 2 or 3)
+    end
+end
+
+-- =====================
+-- 8️⃣ رسالة تأكيد
+-- =====================
+print("🔥 أقوى سكربت متقدم لتقليل Lag مفعل! الأداء محسّن تلقائيًا لكل لاعب.")
